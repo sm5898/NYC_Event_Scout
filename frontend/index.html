@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NYC Event Scout</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <main>
+    <h1>NYC Event Scout</h1>
+    <p class="subtitle">Tell us what you're into, and we'll find NYC orgs and events for you.</p>
+
+    <form id="profile-form">
+      <label for="raw-text">Describe your interests</label>
+      <textarea
+        id="raw-text"
+        name="raw_text"
+        rows="3"
+        placeholder="e.g. I love jazz but hate crowds, prefer free events outdoors"
+      ></textarea>
+
+      <fieldset>
+        <legend>Categories</legend>
+        <label class="checkbox">
+          <input type="checkbox" name="category" value="arts_culture" />
+          Arts &amp; Culture
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" name="category" value="parks_outdoors" />
+          Parks &amp; Outdoors
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" name="category" value="nightlife_bars" />
+          Nightlife &amp; Bars
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" name="category" value="food_restaurants" />
+          Food &amp; Restaurants
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" name="category" value="community_nonprofits" />
+          Community &amp; Nonprofits
+        </label>
+      </fieldset>
+
+      <button type="submit" id="find-events-btn">Find Events</button>
+    </form>
+
+    <section id="status" class="status" hidden></section>
+
+    <section id="orgs-container" class="results" hidden>
+      <h2>Agent 1 found these orgs for you</h2>
+      <ul id="orgs-list"></ul>
+    </section>
+
+    <section id="events-container" class="results" hidden>
+      <h2>Events</h2>
+      <ul id="events-list"></ul>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
