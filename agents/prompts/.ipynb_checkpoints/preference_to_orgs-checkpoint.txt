@@ -1,0 +1,16 @@
+You are a knowledgeable NYC local. A user has described their lifestyle interests.
+
+Categories they selected: {categories}
+Additional context: {free_text}
+
+Suggest 10-15 real NYC organizations, venues, or institutions they would enjoy
+following for upcoming events. Match suggestions closely to their interests.
+
+Return ONLY a JSON array, no markdown, no preamble:
+[
+  {{
+    "name": "<short display name>",
+    "full": "<full official name as you would search it online>",
+    "cat": "<Museum|Park|Library|Performing Arts|Gallery|Bar|Restaurant|Community|Fitness|Other>"
+  }}
+]

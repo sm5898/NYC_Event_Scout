@@ -1,0 +1,103 @@
+{
+  "user_id": "test_user_001",
+  "created_at": "2026-07-11T14:59:08.473102+00:00",
+  "updated_at": "2026-07-11T14:59:08.473102+00:00",
+  "categories": [
+    "arts",
+    "parks"
+  ],
+  "free_text": "I love jazz but hate crowds, prefer free events",
+  "orgs": [
+    {
+      "name": "Jazz at Lincoln Center",
+      "full": "Jazz at Lincoln Center",
+      "cat": "Performing Arts",
+      "active": true
+    },
+    {
+      "name": "Central Park SummerStage",
+      "full": "SummerStage in Central Park",
+      "cat": "Performing Arts",
+      "active": true
+    },
+    {
+      "name": "The Blue Note",
+      "full": "The Blue Note Jazz Club",
+      "cat": "Bar",
+      "active": true
+    },
+    {
+      "name": "Museum of Modern Art (MoMA)",
+      "full": "Museum of Modern Art",
+      "cat": "Gallery",
+      "active": true
+    },
+    {
+      "name": "The Metropolitan Museum of Art (The Met)",
+      "full": "The Metropolitan Museum of Art",
+      "cat": "Gallery",
+      "active": true
+    },
+    {
+      "name": "The High Line",
+      "full": "The High Line",
+      "cat": "Park",
+      "active": true
+    },
+    {
+      "name": "Washington Square Park",
+      "full": "Washington Square Park",
+      "cat": "Park",
+      "active": true
+    },
+    {
+      "name": "Queens Botanical Garden",
+      "full": "Queens Botanical Garden",
+      "cat": "Park",
+      "active": true
+    },
+    {
+      "name": "The Brooklyn Botanic Garden",
+      "full": "Brooklyn Botanic Garden",
+      "cat": "Park",
+      "active": true
+    },
+    {
+      "name": "New York Public Library",
+      "full": "New York Public Library",
+      "cat": "Library",
+      "active": true
+    },
+    {
+      "name": "The Bronx Museum of the Arts",
+      "full": "The Bronx Museum of the Arts",
+      "cat": "Gallery",
+      "active": true
+    },
+    {
+      "name": "The Jazz Gallery",
+      "full": "The Jazz Gallery",
+      "cat": "Bar",
+      "active": true
+    },
+    {
+      "name": "The Village Vanguard",
+      "full": "The Village Vanguard",
+      "cat": "Bar",
+      "active": true
+    },
+    {
+      "name": "Jazzmobile",
+      "full": "Jazzmobile",
+      "cat": "Community",
+      "active": true
+    },
+    {
+      "name": "The New York Public Library for the Performing Arts",
+      "full": "The New York Public Library for the Performing Arts",
+      "cat": "Library",
+      "active": true
+    }
+  ],
+  "embedding_id": "pref_test_user_001"
+}
