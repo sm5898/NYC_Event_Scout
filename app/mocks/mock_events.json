@@ -7,7 +7,10 @@
     "location": "Museum of Modern Art, 11 W 53rd St, New York, NY",
     "price": "Free",
     "link": "https://www.moma.org/calendar/",
-    "similarity_score": 0.91
+    "similarity_score": 0.91,
+    "description": "A free Friday-evening walkthrough of contemporary photography from the museum's collection, with curator-led commentary.",
+    "type": "exhibition",
+    "org": "Museum of Modern Art"
   },
   {
     "event_id": "evt_002",
@@ -17,7 +20,10 @@
     "location": "Central Park SummerStage, New York, NY",
     "price": "Free",
     "link": "https://cityparksfoundation.org/summerstage/",
-    "similarity_score": 0.87
+    "similarity_score": 0.87,
+    "description": "An open-air evening of live jazz in Central Park, part of the free SummerStage concert series.",
+    "type": "concert",
+    "org": "Central Park SummerStage"
   },
   {
     "event_id": "evt_003",
@@ -27,7 +33,10 @@
     "location": "The High Line, New York, NY",
     "price": 0,
     "link": "https://www.thehighline.org/events/",
-    "similarity_score": 0.78
+    "similarity_score": 0.78,
+    "description": "A morning volunteer planting session followed by a guided sunset stroll along the elevated park's gardens.",
+    "type": "outdoors",
+    "org": "The High Line"
   },
   {
     "event_id": "evt_004",
@@ -37,7 +46,10 @@
     "location": "The Village Vanguard, 178 7th Ave S, New York, NY",
     "price": 35,
     "link": "https://villagevanguard.com/",
-    "similarity_score": 0.83
+    "similarity_score": 0.83,
+    "description": "An intimate late-night jazz set at the historic Greenwich Village club, small room and close seating.",
+    "type": "concert",
+    "org": "The Village Vanguard"
   },
   {
     "event_id": "evt_005",
@@ -47,6 +59,9 @@
     "location": "Brooklyn Botanic Garden, 990 Washington Ave, Brooklyn, NY",
     "price": "$18",
     "link": "https://www.bbg.org/visit/event/",
-    "similarity_score": 0.72
+    "similarity_score": 0.72,
+    "description": "A guided golden-hour walking tour through the botanic garden's seasonal collections and quiet paths.",
+    "type": "outdoors",
+    "org": "Brooklyn Botanic Garden"
   }
 ]

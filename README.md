@@ -10,9 +10,15 @@ A multi-agent event discovery system for NYC. This phase implements:
   selected interest categories into normalized category weights and a seeded list
   of real NYC organizations grounded in those search results, adapted to the
   locked `PreferenceProfile` schema below.
-- **Agent 2 — Event Retriever** (`app/agents/event_retriever.py`): **stub only**.
-  Ignores the profile it's given and returns the contents of
-  `app/mocks/mock_events.json`, reshaped into a valid `RankedEvents` response.
+- **Agent 2 — Event Retriever** (`app/agents/event_retriever.py`): **RAG core**.
+  Embeds each event on `title + description + type + org` with
+  `sentence-transformers/all-MiniLM-L6-v2` (384-dim) into the ChromaDB `events`
+  collection, resolves the user's preference vector **hybrid**-style — the stored
+  `user_preferences` vector when `PreferenceProfile.embedding_id` is set and found,
+  otherwise an on-the-fly embedding of `profile_embedding_seed` — and returns
+  `Event`s sorted by cosine `similarity_score`. If `chromadb` /
+  `sentence-transformers` aren't installed or the vector path fails, it degrades
+  gracefully to the `app/mocks/mock_events.json` stub (`get_stub_events`).
 - A minimal vanilla HTML/CSS/JS frontend that drives both endpoints in sequence.
 - Agent 3 (final feed) and the accept/skip signals endpoint are **not implemented
   yet** — only their pydantic schemas exist (`FinalFeed`, `SignalBatch` in
@@ -25,23 +31,29 @@ app/
 ├── main.py                        # FastAPI app: API routes + static frontend
 ├── agents/
 │   ├── preference_profiler.py     # Agent 1 — real
-│   └── event_retriever.py         # Agent 2 — stub
+│   └── event_retriever.py         # Agent 2 — RAG core (+ stub fallback)
 ├── schemas/
 │   └── models.py                  # all four shared pydantic schemas
 └── mocks/
-    └── mock_events.json           # sample data for the Agent 2 stub
+    └── mock_events.json           # sample events (Agent 2 RAG input + stub fallback)
 frontend/
 ├── index.html
 ├── style.css
 └── app.js
 tests/
 ├── test_health.py
-└── test_preference_profiler.py
+├── test_preference_profiler.py
+└── test_event_retriever.py
 ```
 
-`notebooks/`, `chroma/`, `storage/`, and `agents/prompts/` at the repo root are
-leftover artifacts from an earlier exploratory prototype and are unrelated to the
-`app/` service built this phase — left in place, not wired into anything here.
+`chroma/` at the repo root is a committed ChromaDB store: its `user_preferences`
+collection holds the seeded 384-dim preference vector (`pref_test_user_001`) that
+Agent 2 reads when a profile carries a matching `embedding_id` (read-only). Agent 2
+writes its `events` collection to a separate, gitignored `chroma_events/` store at
+query time, so the committed `chroma/` stays pristine. Both paths are overridable
+via `USER_PREF_CHROMA_PATH` / `EVENTS_CHROMA_PATH`. `notebooks/`, `storage/`, and
+`agents/prompts/` remain earlier prototype artifacts not wired into the `app/`
+service.
 
 ## Local setup
 
@@ -100,10 +112,11 @@ prototype notebook) if either isn't available under your HF plan.
 
 ## What's next (later phases)
 
-- **Agent 2, for real**: replace `event_retriever.py`'s stub with actual search
-  calls per organization, embeddings for the user's `profile_embedding_seed`, and a
-  ChromaDB similarity search to produce `similarity_score`. The `# TODO` comment in
-  that file marks the spot.
+- **Agent 2 follow-ups**: the RAG core (embeddings + ChromaDB cosine ranking) is
+  implemented in `event_retriever.py`. Remaining work is sourcing real events
+  (live per-org search) to replace `mock_events.json`, and having Agent 1 persist
+  each user's preference vector to `user_preferences` so the stored-vector path is
+  exercised for freshly-created users (not just the seeded `pref_test_user_001`).
 - **Agent 3**: consumes `RankedEvents` + user history, produces a `FinalFeed`
   (already modeled) with `final_score`/`reason` per event and a
   `best_bets_this_weekend` shortlist.

@@ -4,5 +4,10 @@ pydantic==2.13.4
 huggingface_hub==1.23.0
 ddgs==9.14.4
 python-dotenv==1.0.1
+# Agent 2 RAG: user/event embeddings + vector store. When absent, Agent 2
+# degrades gracefully to the mock-event stub (see app/agents/event_retriever.py).
+# chromadb pinned to the version that created the seeded chroma/ store.
+chromadb==1.5.9
+sentence-transformers==5.6.0
 pytest==9.1.1
 httpx==0.28.1

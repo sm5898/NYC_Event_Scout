@@ -7,7 +7,7 @@ whole team ahead of Agent 3 and the signals endpoint.
 
 from __future__ import annotations
 
-from typing import List, Literal, Union
+from typing import List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -35,9 +35,15 @@ class PreferenceProfile(BaseModel):
     orgs: List[Org]
     raw_text: str
     profile_embedding_seed: str
+    # Optional pointer to a precomputed user-preference vector in the ChromaDB
+    # `user_preferences` collection (e.g. "pref_test_user_001"). When present and
+    # found, Agent 2 uses that stored vector; otherwise it embeds
+    # profile_embedding_seed at query time. Optional keeps this backward-compatible
+    # with Agent 1, which does not populate it.
+    embedding_id: Optional[str] = None
 
 
-# --- Agent 2 output: ranked events (stubbed this phase) ------------------
+# --- Agent 2 output: ranked events --------------------------------------
 
 
 class Event(BaseModel):
@@ -48,7 +54,12 @@ class Event(BaseModel):
     location: str
     price: Price
     link: str
-    similarity_score: float = Field(ge=0.0, le=1.0)
+    similarity_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    # Fields Agent 2 embeds on (title + description + type + org). Optional with
+    # empty defaults so existing mock/output events that omit them still validate.
+    description: str = ""
+    type: str = ""
+    org: str = ""
 
 
 class RankedEvents(BaseModel):
