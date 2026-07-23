@@ -12,7 +12,7 @@ load_dotenv()
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from app.agents.event_retriever import get_stub_events
+from app.agents.event_retriever import get_ranked_events
 from app.agents.preference_profiler import build_preference_profile
 from app.schemas.models import (
     PreferenceProfile,
@@ -40,7 +40,7 @@ def preference_profiler(request: PreferenceProfilerRequest) -> PreferenceProfile
 
 @app.post("/agents/event-retriever", response_model=RankedEvents)
 def event_retriever(profile: PreferenceProfile) -> RankedEvents:
-    return get_stub_events(profile.user_id)
+    return get_ranked_events(profile)
 
 
 # Mounted last so it never shadows the explicit API routes above.
