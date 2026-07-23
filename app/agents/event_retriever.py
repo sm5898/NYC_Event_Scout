@@ -1,7 +1,13 @@
-"""Agent 2 — Event Retriever (Hybrid RAG core).
+"""Agent 2 — Event Retriever (Hybrid RAG core + live retrieval).
 
 Ranks events for a user by cosine similarity between the user's preference vector
 and each event's embedding.
+
+Candidate events come from ``_load_live_events`` (app/agents/live_events.py): real,
+grounded events found via web search per org/category in the profile. Any failure
+there (no token, nothing found, malformed event) raises and the whole request
+falls back to ``get_stub_events`` (``app/mocks/mock_events.json``) — see
+``_load_raw_events``, kept intact as that fallback's data source.
 
 User-vector resolution is HYBRID:
   1. If ``profile.embedding_id`` is set AND found in the ChromaDB ``user_preferences``
@@ -15,11 +21,11 @@ vector. ``similarity_score = clamp(1 - cosine_distance, 0, 1)`` is attached to
 each Event, and events are returned sorted by that score (highest first) for
 Agent 3.
 
-Any failure in the RAG path — missing optional deps (chromadb / sentence-
-transformers), model download failure, Chroma error — degrades gracefully to
-``get_stub_events`` so the endpoint never 500s. Heavy imports are done lazily
-inside the loader functions so importing this module (and the stub path) works
-even when those packages aren't installed.
+Any failure in the RAG path — live retrieval, missing optional deps (chromadb /
+sentence-transformers), model download failure, Chroma error — degrades
+gracefully to ``get_stub_events`` so the endpoint never 500s. Heavy imports are
+done lazily inside the loader functions so importing this module (and the stub
+path) works even when those packages aren't installed.
 """
 
 from __future__ import annotations
@@ -30,9 +36,14 @@ import os
 from pathlib import Path
 from typing import List, Optional
 
+from app.agents.live_events import fetch_live_events
 from app.schemas.models import Event, PreferenceProfile, RankedEvents
 
 logger = logging.getLogger(__name__)
+
+# Fields every live event dict must carry — no defaults; a missing one drops the
+# whole request to the stub fallback (see _normalize).
+_REQUIRED_LIVE_EVENT_FIELDS = ("event_id", "org_id", "title", "date", "location", "price", "link")
 
 APP_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = APP_DIR.parent
@@ -95,6 +106,47 @@ def _load_chroma_client(path: str):
 def _load_raw_events() -> List[dict]:
     with open(MOCK_EVENTS_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def _normalize(item: dict) -> dict:
+    """Validate + shape one live-event dict to the Event contract's required fields.
+
+    Raises ValueError if a required field is missing/empty so a malformed live
+    event fails fast here in ``_load_live_events`` rather than surfacing later as
+    a confusing ``Event(**data)`` error — either way it propagates up and the
+    whole request falls back to the stub, per the integration contract.
+    """
+    normalized = {}
+    for key in _REQUIRED_LIVE_EVENT_FIELDS:
+        value = item.get(key)
+        if value in (None, ""):
+            raise ValueError(f"live event missing required field {key!r}: {item!r}")
+        normalized[key] = value
+    for key in ("description", "type", "org"):
+        normalized[key] = item.get(key) or ""
+    return normalized
+
+
+def _load_live_events(profile: PreferenceProfile) -> List[dict]:
+    """Live retrieval + normalization -> list of raw event dicts.
+
+    This is the integration seam: swap-in for ``_load_raw_events()`` in
+    ``get_ranked_events``. ``_load_raw_events`` itself is untouched and remains
+    the stub-fallback source (see ``get_stub_events``).
+    """
+    raw = fetch_live_events(profile)  # live retrieval — uses profile.orgs/categories/raw_text
+    normalized = [_normalize(e) for e in raw]
+
+    # Dedupe by event_id (keep first occurrence) — a repeated id would otherwise
+    # appear twice in the ranked output even though Chroma upsert collapses it.
+    seen = set()
+    deduped = []
+    for item in normalized:
+        if item["event_id"] in seen:
+            continue
+        seen.add(item["event_id"])
+        deduped.append(item)
+    return deduped
 
 
 def event_embedding_text(item: dict) -> str:
@@ -178,7 +230,7 @@ def get_ranked_events(profile: PreferenceProfile) -> RankedEvents:
     Falls back to :func:`get_stub_events` on any failure so the endpoint never 500s.
     """
     try:
-        raw_events = _load_raw_events()
+        raw_events = _load_live_events(profile)
         if not raw_events:
             return RankedEvents(user_id=profile.user_id, events=[])
 

@@ -7,6 +7,8 @@ network, or require chromadb / sentence-transformers to be installed.
 
 from unittest.mock import patch
 
+import pytest
+
 import app.agents.event_retriever as er
 from app.schemas.models import Event, PreferenceProfile, RankedEvents
 
@@ -108,7 +110,9 @@ def test_ranks_and_sorts_by_similarity_and_embeds_seed():
     events_coll = _FakeEventsCollection(distances)
     client = _FakeClient(events_coll)
 
-    with patch.object(er, "_load_embedder", return_value=embedder), patch.object(
+    with patch.object(
+        er, "_load_live_events", return_value=er._load_raw_events()
+    ), patch.object(er, "_load_embedder", return_value=embedder), patch.object(
         er, "_load_chroma_client", return_value=client
     ):
         result = er.get_ranked_events(_profile())
@@ -141,7 +145,9 @@ def test_uses_stored_vector_when_embedding_id_present():
     user_pref = _FakeUserPrefCollection({"pref_test_user_001": stored_vector})
     client = _FakeClient(events_coll, user_pref)
 
-    with patch.object(er, "_load_embedder", return_value=embedder), patch.object(
+    with patch.object(
+        er, "_load_live_events", return_value=er._load_raw_events()
+    ), patch.object(er, "_load_embedder", return_value=embedder), patch.object(
         er, "_load_chroma_client", return_value=client
     ):
         result = er.get_ranked_events(_profile(embedding_id="pref_test_user_001"))
@@ -167,7 +173,9 @@ def test_stored_vector_handles_numpy_array_from_chroma():
     events_coll = _FakeEventsCollection({"evt_001": 0.1})
     client = _FakeClient(events_coll, _NumpyUserPref())
 
-    with patch.object(er, "_load_embedder", return_value=embedder), patch.object(
+    with patch.object(
+        er, "_load_live_events", return_value=er._load_raw_events()
+    ), patch.object(er, "_load_embedder", return_value=embedder), patch.object(
         er, "_load_chroma_client", return_value=client
     ):
         result = er.get_ranked_events(_profile(embedding_id="pref_test_user_001"))
@@ -185,7 +193,9 @@ def test_missing_embedding_id_falls_back_to_seed_embedding():
     user_pref = _FakeUserPrefCollection({"pref_test_user_001": None})  # not found
     client = _FakeClient(events_coll, user_pref)
 
-    with patch.object(er, "_load_embedder", return_value=embedder), patch.object(
+    with patch.object(
+        er, "_load_live_events", return_value=er._load_raw_events()
+    ), patch.object(er, "_load_embedder", return_value=embedder), patch.object(
         er, "_load_chroma_client", return_value=client
     ):
         result = er.get_ranked_events(_profile(embedding_id="pref_missing"))
@@ -220,6 +230,142 @@ def test_falls_back_when_deps_not_installed():
 
     assert isinstance(result, RankedEvents)
     assert len(result.events) == 5
+
+
+def test_live_events_flow_through_and_similarity_is_computed():
+    """_load_live_events is the integration seam: when it returns real events,
+    those flow through embedding/ranking and similarity_score is COMPUTED by the
+    RAG layer (from the fake distances below), not anything the live event dicts
+    carried — the dicts here never set similarity_score at all."""
+    live_events = [
+        {
+            "event_id": "live_abc123",
+            "org_id": "org_met",
+            "title": "Free Friday Nights",
+            "date": "2026-07-25T18:00:00-04:00",
+            "location": "The Met, New York, NY",
+            "price": "Free",
+            "link": "https://www.metmuseum.org/events/free-friday",
+            "description": "Free evening museum access.",
+            "type": "arts_culture",
+            "org": "The Metropolitan Museum of Art",
+        },
+        {
+            "event_id": "live_def456",
+            "org_id": "org_highline",
+            "title": "Sunset Walk",
+            "date": "2026-07-26T19:00:00-04:00",
+            "location": "The High Line, New York, NY",
+            "price": "See website",
+            "link": "https://www.thehighline.org/events/sunset-walk",
+            "description": "A guided sunset walk.",
+            "type": "parks_outdoors",
+            "org": "The High Line",
+        },
+    ]
+
+    embedder = _FakeEmbedder()
+    distances = {"live_abc123": 0.1, "live_def456": 0.4}
+    events_coll = _FakeEventsCollection(distances)
+    client = _FakeClient(events_coll)
+
+    with patch.object(
+        er, "_load_live_events", return_value=live_events
+    ), patch.object(er, "_load_embedder", return_value=embedder), patch.object(
+        er, "_load_chroma_client", return_value=client
+    ):
+        result = er.get_ranked_events(_profile())
+
+    assert isinstance(result, RankedEvents)
+    assert len(result.events) == 2
+    assert {e.event_id for e in result.events} == {"live_abc123", "live_def456"}
+
+    scores = {e.event_id: e.similarity_score for e in result.events}
+    assert abs(scores["live_abc123"] - 0.9) < 1e-6
+    assert abs(scores["live_def456"] - 0.6) < 1e-6
+    # Sorted highest-first.
+    assert result.events[0].event_id == "live_abc123"
+    # All 2 live events (not the 5 mock events) were the ones embedded/upserted.
+    assert set(events_coll.upserted_ids) == {"live_abc123", "live_def456"}
+
+
+def test_malformed_live_event_falls_back_to_stub():
+    """If live retrieval/normalization raises (e.g. a required field was missing
+    on a live event), the whole request degrades to the stub — never a partial
+    result or a crash."""
+    with patch.object(
+        er,
+        "_load_live_events",
+        side_effect=ValueError("live event missing required field 'date'"),
+    ):
+        result = er.get_ranked_events(_profile(user_id="malformed-user"))
+
+    assert isinstance(result, RankedEvents)
+    assert result.user_id == "malformed-user"
+    assert len(result.events) == 5
+    by_id = {e.event_id: e.similarity_score for e in result.events}
+    assert by_id["evt_001"] == 0.91
+
+
+def test_normalize_requires_all_required_fields():
+    complete = {
+        "event_id": "live_1",
+        "org_id": "org_1",
+        "title": "Title",
+        "date": "2026-07-25",
+        "location": "NYC",
+        "price": "Free",
+        "link": "https://example.com",
+    }
+    normalized = er._normalize(complete)
+    assert normalized["event_id"] == "live_1"
+    # Optional fields default to "" when omitted.
+    assert normalized["description"] == ""
+    assert normalized["type"] == ""
+    assert normalized["org"] == ""
+
+    for missing_field in ("event_id", "title", "date", "location", "price", "link"):
+        incomplete = dict(complete)
+        del incomplete[missing_field]
+        with pytest.raises(ValueError):
+            er._normalize(incomplete)
+
+
+def test_load_live_events_dedupes_by_event_id():
+    duplicated = [
+        {
+            "event_id": "live_1",
+            "org_id": "org_1",
+            "title": "Same Event",
+            "date": "2026-07-25",
+            "location": "NYC",
+            "price": "Free",
+            "link": "https://example.com/a",
+        },
+        {
+            "event_id": "live_1",  # duplicate id, e.g. surfaced from two targets
+            "org_id": "org_1",
+            "title": "Same Event",
+            "date": "2026-07-25",
+            "location": "NYC",
+            "price": "Free",
+            "link": "https://example.com/a",
+        },
+        {
+            "event_id": "live_2",
+            "org_id": "org_2",
+            "title": "Different Event",
+            "date": "2026-07-26",
+            "location": "NYC",
+            "price": "Free",
+            "link": "https://example.com/b",
+        },
+    ]
+
+    with patch.object(er, "fetch_live_events", return_value=duplicated):
+        result = er._load_live_events(_profile())
+
+    assert [item["event_id"] for item in result] == ["live_1", "live_2"]
 
 
 def test_event_embedding_text_uses_contract_fields():
